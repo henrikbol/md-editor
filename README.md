@@ -34,14 +34,14 @@ cd md-editor
 npm install
 
 # Run in development mode (opens the app with hot-reload)
-cargo tauri dev
+npm run tauri dev
 ```
 
 ## Build for macOS
 
 ```bash
 # Build a production .dmg / .app bundle
-cargo tauri build
+npm run tauri build
 ```
 
 The output will be in `src-tauri/target/release/bundle/`:
