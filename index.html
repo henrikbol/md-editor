@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MD Editor</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <div id="sidebar-header">
+          <h2>Files</h2>
+          <button id="open-folder-btn" title="Open folder">&#128193;</button>
+        </div>
+        <ul id="file-list"></ul>
+      </aside>
+      <div id="editor-pane"></div>
+      <div id="divider"></div>
+      <div id="preview-pane">
+        <div id="preview-content"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
