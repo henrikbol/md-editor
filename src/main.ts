@@ -3,6 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { initEditor, setContent, getContent } from "./editor";
 import { initPreview, updatePreview } from "./preview";
 import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
+import { initScrollSync, resyncScroll } from "./scroll-sync";
 
 let currentFilePath: string | null = null;
 let isDirty = false;
@@ -161,8 +162,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileList = document.getElementById("file-list")!;
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
-  initPreview(previewContent);
+  const previewPane = document.getElementById("preview-pane")!;
+  initPreview(previewContent, resyncScroll);
   initEditor(editorPane, handleEditorChange);
+  initScrollSync(previewPane);
   initSidebar(fileList, openFolderBtn, handleFileOpen);
   setupDivider();
   setupKeyboardShortcuts();

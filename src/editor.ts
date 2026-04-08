@@ -68,3 +68,13 @@ export function setContent(content: string) {
 export function getContent(): string {
   return view?.state.doc.toString() ?? "";
 }
+
+export function onEditorScroll(callback: (topLine: number) => void): void {
+  if (!view) return;
+  view.scrollDOM.addEventListener("scroll", () => {
+    if (!view) return;
+    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    const line = view.state.doc.lineAt(block.from);
+    callback(line.number);
+  });
+}

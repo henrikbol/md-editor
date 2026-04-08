@@ -15,6 +15,7 @@ pub fn render(input: &str) -> String {
     options.extension.tasklist = true;
     options.extension.header_id_prefix = Some(String::new());
     options.render.r#unsafe = true;
+    options.render.sourcepos = true;
 
     let html = markdown_to_html(input, &options);
     highlight_code_blocks(&html)
@@ -24,31 +25,61 @@ fn highlight_code_blocks(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut remaining = html;
 
-    while let Some(pre_start) = remaining.find("<pre><code") {
+    // Match <pre with optional attributes (e.g. data-sourcepos) followed by ><code
+    while let Some(pre_start) = remaining.find("<pre") {
+        let after_pre_tag = &remaining[pre_start + 4..];
+
+        // Check this is actually a <pre> or <pre ...> followed by <code
+        let Some(pre_close) = after_pre_tag.find('>') else {
+            result.push_str(&remaining[..pre_start + 4]);
+            remaining = after_pre_tag;
+            continue;
+        };
+
+        let after_pre_close = &after_pre_tag[pre_close + 1..];
+        if !after_pre_close.starts_with("<code") {
+            result.push_str(&remaining[..pre_start + 4 + pre_close + 1]);
+            remaining = after_pre_close;
+            continue;
+        }
+
         result.push_str(&remaining[..pre_start]);
 
-        let after_pre = &remaining[pre_start..];
-        let Some(code_end) = after_pre.find("</code></pre>") else {
-            result.push_str(after_pre);
+        let block_start = &remaining[pre_start..];
+        let Some(code_end) = block_start.find("</code></pre>") else {
+            result.push_str(block_start);
             return result;
         };
 
-        let block = &after_pre[..code_end + "</code></pre>".len()];
+        let block = &block_start[..code_end + "</code></pre>".len()];
+        let pre_attrs = &after_pre_tag[..pre_close];
+        let sourcepos = extract_attribute(pre_attrs, "data-sourcepos");
         let lang = extract_language(block);
         let code = extract_code_content(block);
         let decoded = decode_html_entities(&code);
 
-        if let Some(highlighted) = try_highlight(&decoded, &lang) {
+        if let Some(highlighted) = try_highlight(&decoded, &lang, &sourcepos) {
             result.push_str(&highlighted);
         } else {
             result.push_str(block);
         }
 
-        remaining = &after_pre[code_end + "</code></pre>".len()..];
+        remaining = &block_start[code_end + "</code></pre>".len()..];
     }
 
     result.push_str(remaining);
     result
+}
+
+fn extract_attribute(attrs: &str, name: &str) -> String {
+    let pattern = format!("{}=\"", name);
+    if let Some(start) = attrs.find(&pattern) {
+        let after = &attrs[start + pattern.len()..];
+        if let Some(end) = after.find('"') {
+            return after[..end].to_string();
+        }
+    }
+    String::new()
 }
 
 fn extract_language(block: &str) -> String {
@@ -89,7 +120,7 @@ fn decode_html_entities(s: &str) -> String {
         .replace("&#39;", "'")
 }
 
-fn try_highlight(code: &str, lang: &str) -> Option<String> {
+fn try_highlight(code: &str, lang: &str, sourcepos: &str) -> Option<String> {
     if lang.is_empty() {
         return None;
     }
@@ -100,5 +131,43 @@ fn try_highlight(code: &str, lang: &str) -> Option<String> {
     let theme = &ts.themes["base16-ocean.dark"];
 
     let highlighted = highlighted_html_for_string(code, ss, syntax, theme).ok()?;
-    Some(format!("<div class=\"highlighted-code\">{}</div>", highlighted))
+    let sp_attr = if sourcepos.is_empty() {
+        String::new()
+    } else {
+        format!(" data-sourcepos=\"{}\"", sourcepos)
+    };
+    Some(format!("<div class=\"highlighted-code\"{}>{}</div>", sp_attr, highlighted))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sourcepos_on_block_elements() {
+        let input = "# Hello\n\nA paragraph.\n\n```rust\nlet x = 1;\n```\n\n> quote\n";
+        let html = render(input);
+        assert!(html.contains("data-sourcepos"));
+        assert!(html.contains("<h1 data-sourcepos="));
+        assert!(html.contains("<p data-sourcepos="));
+        assert!(html.contains("<blockquote data-sourcepos="));
+    }
+
+    #[test]
+    fn test_highlighted_code_preserves_sourcepos() {
+        let input = "```javascript\nconsole.log('hi');\n```\n";
+        let html = render(input);
+        assert!(html.contains("highlighted-code"), "should be highlighted: {}", html);
+        assert!(html.contains("data-sourcepos"), "should have sourcepos: {}", html);
+        assert!(html.contains("<div class=\"highlighted-code\" data-sourcepos="));
+    }
+
+    #[test]
+    fn test_code_block_without_lang_preserves_sourcepos() {
+        let input = "```\nplain code\n```\n";
+        let html = render(input);
+        assert!(html.contains("data-sourcepos"));
+        // No language means no highlighting, so raw <pre> is preserved with sourcepos
+        assert!(html.contains("<pre data-sourcepos="));
+    }
 }
