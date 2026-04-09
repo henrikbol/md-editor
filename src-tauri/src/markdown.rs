@@ -128,6 +128,8 @@ fn try_highlight(code: &str, lang: &str, sourcepos: &str) -> Option<String> {
     let ss = &*SYNTAX_SET;
     let ts = &*THEME_SET;
     let syntax = ss.find_syntax_by_token(lang)?;
+    // TODO: Embed a custom One Dark .tmTheme for accurate One Dark Pro highlighting.
+    // base16-ocean.dark is the closest built-in syntect theme for now.
     let theme = &ts.themes["base16-ocean.dark"];
 
     let highlighted = highlighted_html_for_string(code, ss, syntax, theme).ok()?;
