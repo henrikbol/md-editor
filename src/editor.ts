@@ -8,9 +8,11 @@ import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@cod
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 
 export type ChangeCallback = (content: string) => void;
+export type CursorCallback = (line: number, col: number) => void;
 
 let view: EditorView | null = null;
 let changeCallback: ChangeCallback | null = null;
+let cursorCallback: CursorCallback | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const DEBOUNCE_MS = 150;
@@ -38,6 +40,11 @@ export function initEditor(container: HTMLElement, onChange: ChangeCallback): Ed
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           debouncedChange(update.state.doc.toString());
+        }
+        if (update.selectionSet) {
+          const pos = update.state.selection.main.head;
+          const line = update.state.doc.lineAt(pos);
+          cursorCallback?.(line.number, pos - line.from + 1);
         }
       }),
       EditorView.theme({
@@ -67,6 +74,10 @@ export function setContent(content: string) {
 
 export function getContent(): string {
   return view?.state.doc.toString() ?? "";
+}
+
+export function onCursorChange(callback: CursorCallback): void {
+  cursorCallback = callback;
 }
 
 export function onEditorScroll(callback: (topLine: number) => void): void {

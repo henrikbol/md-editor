@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import { initEditor, setContent, getContent } from "./editor";
+import { initEditor, setContent, getContent, onCursorChange } from "./editor";
 import { initPreview, updatePreview } from "./preview";
 import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
 import { initScrollSync, resyncScroll } from "./scroll-sync";
+import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType } from "./statusbar";
 
 let currentFilePath: string | null = null;
 let isDirty = false;
@@ -16,9 +17,14 @@ function updateTitle() {
   document.title = `${fileName}${dirtyMark} - MD Editor`;
 }
 
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
 async function handleEditorChange(content: string) {
   isDirty = true;
   updateTitle();
+  updateWordCount(countWords(content));
   await updatePreview(content);
 }
 
@@ -28,6 +34,8 @@ function handleFileOpen(path: string, content: string) {
   setContent(content);
   isDirty = false;
   updateTitle();
+  updateWordCount(countWords(content));
+  updateFileType("Markdown");
   updatePreview(content);
 }
 
@@ -163,7 +171,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
   const previewPane = document.getElementById("preview-pane")!;
+  const statusBar = document.getElementById("status-bar")!;
+
+  initStatusBar(statusBar);
   initPreview(previewContent, resyncScroll);
+  onCursorChange((line, col) => updateCursorPosition(line, col));
   initEditor(editorPane, handleEditorChange);
   initScrollSync(previewPane);
   initSidebar(fileList, openFolderBtn, handleFileOpen);
@@ -172,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load welcome content
   setContent(WELCOME_TEXT);
+  updateWordCount(countWords(WELCOME_TEXT));
   updatePreview(WELCOME_TEXT);
   updateTitle();
 });
