@@ -1,8 +1,13 @@
-type PanelName = 'explorer' | 'search';
+type PanelName = 'explorer' | 'search' | 'settings';
 
 let activePanel: PanelName | null = 'explorer';
 let sidebarEl: HTMLElement | null = null;
 let sidebarWidth: number = 220;
+let settingsToggleCallback: (() => void) | null = null;
+
+export function setSettingsToggleCallback(callback: () => void): void {
+  settingsToggleCallback = callback;
+}
 
 export function initActivityBar(
   activityBarEl: HTMLElement,
@@ -13,6 +18,10 @@ export function initActivityBar(
   activityBarEl.querySelectorAll('.activity-icon').forEach(btn => {
     btn.addEventListener('click', () => {
       const panel = btn.getAttribute('data-panel') as PanelName;
+      if (panel === 'settings') {
+        if (settingsToggleCallback) settingsToggleCallback();
+        return;
+      }
       if (panel === activePanel) {
         toggleSidebar();
       } else {

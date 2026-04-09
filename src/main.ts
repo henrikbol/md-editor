@@ -2,15 +2,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask, save } from "@tauri-apps/plugin-dialog";
 import { EditorState } from "@codemirror/state";
-import { initEditor, setContent, getContent, onCursorChange, setFontSize, createEditorState, getEditorState, setEditorState, getScrollDOM } from "./editor";
+import { initEditor, setContent, getContent, onCursorChange, setFontSize, createEditorState, getEditorState, setEditorState, getScrollDOM, getEditorView } from "./editor";
 import { initPreview, updatePreview } from "./preview";
 import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
-import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType, clearStatusBar } from "./statusbar";
+import { initBottomBar, updateCursorPosition, updateWordCount, updateFileType, clearBottomBar } from "./bottom-bar";
 import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty, updateTabPath } from "./tab-bar";
-import { initActivityBar, switchPanel } from "./activity-bar";
+import { initActivityBar, switchPanel, setSettingsToggleCallback } from "./activity-bar";
 import { initSearchPanel } from "./search-panel";
+import { initSettingsPanel, toggleSettings } from "./settings-panel";
 import { scrollToLine } from "./editor";
+import { undo, redo } from "@codemirror/commands";
+import { showShortcutsModal } from "./shortcuts-modal";
 
 interface BufferEntry {
   editorState: EditorState;
@@ -201,7 +204,7 @@ async function closeBuffer(path: string) {
       resetScrollSync();
       setActivePath("");
       updatePreview("");
-      clearStatusBar();
+      clearBottomBar();
       document.title = "MD Editor";
       showEmptyState();
     }
@@ -343,21 +346,6 @@ function setupKeyboardShortcuts() {
     if (mod && e.key === "o") {
       e.preventDefault();
       await openFile();
-    } else if (mod && e.shiftKey && e.key === "s") {
-      e.preventDefault();
-      await saveFileAs();
-    } else if (mod && e.key === "s") {
-      e.preventDefault();
-      await saveFile();
-    } else if (e.metaKey && (e.key === "=" || e.key === "+")) {
-      e.preventDefault();
-      applyFontSize(currentFontSize + 1);
-    } else if (e.metaKey && e.key === "-") {
-      e.preventDefault();
-      applyFontSize(currentFontSize - 1);
-    } else if (e.metaKey && e.key === "0") {
-      e.preventDefault();
-      applyFontSize(DEFAULT_FONT_SIZE);
     } else if (e.metaKey && e.shiftKey && e.key === "f") {
       e.preventDefault();
       switchPanel('search');
@@ -409,7 +397,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
   const previewPane = document.getElementById("preview-pane")!;
-  const statusBar = document.getElementById("status-bar")!;
+  const bottomBar = document.getElementById("bottom-bar")!;
 
   const tabBar = document.getElementById("tab-bar")!;
   initTabBar(
@@ -418,7 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
     (path) => closeBuffer(path)
   );
 
-  initStatusBar(statusBar);
+  initBottomBar(bottomBar);
   initPreview(previewContent, resyncScroll);
   onCursorChange((line, col) => updateCursorPosition(line, col));
   initEditor(editorPane, handleEditorChange);
@@ -445,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
             resetScrollSync();
             setActivePath("");
             updatePreview("");
-            clearStatusBar();
+            clearBottomBar();
             document.title = "MD Editor";
             showEmptyState();
           }
@@ -476,6 +464,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchPanel = document.getElementById('search-panel')!;
   initSearchPanel(searchPanel, handleSearchResultClick);
 
+  const settingsPanelEl = document.getElementById('settings-panel')!;
+  initSettingsPanel(settingsPanelEl);
+  setSettingsToggleCallback(toggleSettings);
+
   setupDivider();
   setupKeyboardShortcuts();
 
@@ -489,6 +481,58 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
       case "reset-zoom":
         applyFontSize(DEFAULT_FONT_SIZE);
+        break;
+    }
+  });
+
+  listen<string>("menu-action", (event) => {
+    switch (event.payload) {
+      case "new-file": {
+        const content = "";
+        const path = `untitled-${Date.now()}`;
+        const fileName = "Untitled";
+        saveCurrentBufferState();
+        const newState = createEditorState(content);
+        setEditorState(newState);
+        resetScrollSync();
+        buffers.set(path, {
+          editorState: newState,
+          scrollTop: 0,
+          isDirty: false,
+          fileName,
+        });
+        if (buffers.size === 1) showContentArea();
+        addTab(path, fileName);
+        activeBufferPath = path;
+        setActiveTab(path);
+        setActivePath(path);
+        updateTitle();
+        updateWordCount(0);
+        updateFileType("Markdown");
+        updatePreview(content);
+        break;
+      }
+      case "save":
+        saveFile();
+        break;
+      case "save-as":
+        saveFileAs();
+        break;
+      case "undo": {
+        const editorView = getEditorView();
+        if (editorView) undo(editorView);
+        break;
+      }
+      case "redo": {
+        const editorView = getEditorView();
+        if (editorView) redo(editorView);
+        break;
+      }
+      case "keyboard-shortcuts":
+        showShortcutsModal();
+        break;
+      case "preferences":
+        toggleSettings();
         break;
     }
   });

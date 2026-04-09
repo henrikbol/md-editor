@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- macOS-style rounded rectangle background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#0d131e"/>
+
+  <!-- Subtle inner border for depth -->
+  <rect x="8" y="8" width="1008" height="1008" rx="174" ry="174" fill="none" stroke="#97cfe0" stroke-opacity="0.12" stroke-width="4"/>
+
+  <!-- Markdown "M" character - bold geometric -->
+  <text x="512" y="600" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="800" font-size="580" fill="#97cfe0" text-anchor="middle" dominant-baseline="central" letter-spacing="-20">M</text>
+
+  <!-- Down arrow (markdown symbol) tucked into lower-right -->
+  <path d="M 700 680 L 740 680 L 740 760 L 780 760 L 720 830 L 660 760 L 700 760 Z" fill="#97cfe0" fill-opacity="0.7"/>
+</svg>
