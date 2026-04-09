@@ -1,12 +1,28 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
-import { initEditor, setContent, getContent } from "./editor";
+import { initEditor, setContent, getContent, onCursorChange, setFontSize } from "./editor";
 import { initPreview, updatePreview } from "./preview";
 import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
 import { initScrollSync, resyncScroll } from "./scroll-sync";
+import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType } from "./statusbar";
 
 let currentFilePath: string | null = null;
 let isDirty = false;
+
+const DEFAULT_FONT_SIZE = 14;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+let currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE,
+  parseInt(localStorage.getItem("editorFontSize") || String(DEFAULT_FONT_SIZE), 10) || DEFAULT_FONT_SIZE
+));
+
+function applyFontSize(size: number) {
+  currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
+  setFontSize(currentFontSize);
+  document.documentElement.style.setProperty("--editor-font-size", currentFontSize + "px");
+  localStorage.setItem("editorFontSize", String(currentFontSize));
+}
 
 function updateTitle() {
   const fileName = currentFilePath
@@ -16,9 +32,14 @@ function updateTitle() {
   document.title = `${fileName}${dirtyMark} - MD Editor`;
 }
 
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
 async function handleEditorChange(content: string) {
   isDirty = true;
   updateTitle();
+  updateWordCount(countWords(content));
   await updatePreview(content);
 }
 
@@ -28,6 +49,8 @@ function handleFileOpen(path: string, content: string) {
   setContent(content);
   isDirty = false;
   updateTitle();
+  updateWordCount(countWords(content));
+  updateFileType("Markdown");
   updatePreview(content);
 }
 
@@ -121,6 +144,15 @@ function setupKeyboardShortcuts() {
     } else if (mod && e.key === "s") {
       e.preventDefault();
       await saveFile();
+    } else if (e.metaKey && (e.key === "=" || e.key === "+")) {
+      e.preventDefault();
+      applyFontSize(currentFontSize + 1);
+    } else if (e.metaKey && e.key === "-") {
+      e.preventDefault();
+      applyFontSize(currentFontSize - 1);
+    } else if (e.metaKey && e.key === "0") {
+      e.preventDefault();
+      applyFontSize(DEFAULT_FONT_SIZE);
     }
   });
 }
@@ -163,15 +195,35 @@ document.addEventListener("DOMContentLoaded", () => {
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
   const previewPane = document.getElementById("preview-pane")!;
+  const statusBar = document.getElementById("status-bar")!;
+
+  initStatusBar(statusBar);
   initPreview(previewContent, resyncScroll);
+  onCursorChange((line, col) => updateCursorPosition(line, col));
   initEditor(editorPane, handleEditorChange);
+  applyFontSize(currentFontSize);
   initScrollSync(previewPane);
   initSidebar(fileList, openFolderBtn, handleFileOpen);
   setupDivider();
   setupKeyboardShortcuts();
 
+  listen<string>("zoom-action", (event) => {
+    switch (event.payload) {
+      case "zoom-in":
+        applyFontSize(currentFontSize + 1);
+        break;
+      case "zoom-out":
+        applyFontSize(currentFontSize - 1);
+        break;
+      case "reset-zoom":
+        applyFontSize(DEFAULT_FONT_SIZE);
+        break;
+    }
+  });
+
   // Load welcome content
   setContent(WELCOME_TEXT);
+  updateWordCount(countWords(WELCOME_TEXT));
   updatePreview(WELCOME_TEXT);
   updateTitle();
 });
