@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { initEditor, setContent, getContent, onCursorChange, setFontSize } from "./editor";
 import { initPreview, updatePreview } from "./preview";
-import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
+import { initFileTree, openFileDialog, getActivePath, setActivePath } from "./file-tree";
 import { initScrollSync, resyncScroll } from "./scroll-sync";
 import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType } from "./statusbar";
 
@@ -191,7 +191,7 @@ function hello(name) {
 document.addEventListener("DOMContentLoaded", () => {
   const editorPane = document.getElementById("editor-pane")!;
   const previewContent = document.getElementById("preview-content")!;
-  const fileList = document.getElementById("file-list")!;
+  const fileTree = document.getElementById("file-tree")!;
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
   const previewPane = document.getElementById("preview-pane")!;
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initEditor(editorPane, handleEditorChange);
   applyFontSize(currentFontSize);
   initScrollSync(previewPane);
-  initSidebar(fileList, openFolderBtn, handleFileOpen);
+  initFileTree(fileTree, openFolderBtn, handleFileOpen);
   setupDivider();
   setupKeyboardShortcuts();
 

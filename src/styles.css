@@ -115,31 +115,70 @@ html, body {
   color: var(--text-primary);
 }
 
-#file-list {
-  list-style: none;
+#file-tree {
   overflow-y: auto;
   flex: 1;
   padding: 4px 0;
+  outline: none;
 }
 
-#file-list li {
-  padding: 6px 16px;
+.tree-item {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
   cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
+  user-select: none;
   white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.tree-item:hover {
+  background: rgba(97, 175, 239, 0.05);
+}
+
+.tree-item.active {
+  background: rgba(97, 175, 239, 0.1);
+}
+
+.tree-item.focused {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tree-item.muted {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tree-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-#file-list li:hover {
-  background: var(--border);
-  color: var(--text-primary);
+.tree-arrow {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
-#file-list li.active {
-  background: rgba(97, 175, 239, 0.1);
-  color: var(--accent);
+.tree-arrow.empty {
+  /* spacer for files to align with folder names */
+}
+
+.indent-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
 }
 
 .file-icon {
