@@ -20,6 +20,7 @@ pub fn run() {
             files::create_directory,
             files::rename_entry,
             files::delete_entry,
+            files::search_in_files,
         ])
         .setup(|app| {
             let zoom_in =

@@ -36,7 +36,7 @@ function toggleSidebar(): void {
   }
 }
 
-function switchPanel(panel: PanelName): void {
+export function switchPanel(panel: PanelName): void {
   if (!sidebarEl) return;
 
   if (sidebarEl.style.display === 'none') {

@@ -126,6 +126,71 @@ pub fn delete_entry(path: String, workspace_root: String) -> Result<(), String> 
     }
 }
 
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub file_path: String,
+    pub file_name: String,
+    pub line_number: usize,
+    pub line_content: String,
+    pub match_start: usize,
+    pub match_end: usize,
+}
+
+#[tauri::command]
+pub fn search_in_files(dir: String, query: String) -> Result<Vec<SearchResult>, String> {
+    if query.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let mut results = Vec::new();
+
+    let walker = WalkBuilder::new(&dir).build();
+
+    for entry in walker {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+
+        // Skip directories
+        if path.is_dir() {
+            continue;
+        }
+
+        // Skip files > 1MB
+        if let Ok(metadata) = path.metadata() {
+            if metadata.len() > 1_048_576 {
+                continue;
+            }
+        }
+
+        // Try to read as text (skip binary/unreadable files)
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let query_lower = query.to_lowercase();
+        for (line_idx, line) in content.lines().enumerate() {
+            let line_lower = line.to_lowercase();
+            if let Some(pos) = line_lower.find(&query_lower) {
+                results.push(SearchResult {
+                    file_path: path.to_string_lossy().to_string(),
+                    file_name: path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
+                    line_number: line_idx + 1,
+                    line_content: line.to_string(),
+                    match_start: pos,
+                    match_end: pos + query.len(),
+                });
+            }
+        }
+    }
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,5 +481,59 @@ mod tests {
             tmp.path().to_string_lossy().to_string(),
         );
         assert!(result.is_err());
+    }
+
+    // ── search_in_files tests ──
+
+    #[test]
+    fn test_search_empty_query() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("file.txt"), "hello world").unwrap();
+
+        let results = search_in_files(tmp.path().to_string_lossy().to_string(), "".to_string()).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_finds_match() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("file.txt"), "hello world\nfoo bar\nhello again").unwrap();
+
+        let results = search_in_files(tmp.path().to_string_lossy().to_string(), "hello".to_string()).unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].line_number, 1);
+        assert_eq!(results[0].match_start, 0);
+        assert_eq!(results[0].match_end, 5);
+        assert_eq!(results[1].line_number, 3);
+    }
+
+    #[test]
+    fn test_search_case_insensitive() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("file.txt"), "Hello World").unwrap();
+
+        let results = search_in_files(tmp.path().to_string_lossy().to_string(), "hello".to_string()).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].line_content, "Hello World");
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("file.txt"), "hello world").unwrap();
+
+        let results = search_in_files(tmp.path().to_string_lossy().to_string(), "xyz".to_string()).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_multiple_files() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("a.txt"), "match here").unwrap();
+        fs::write(tmp.path().join("b.txt"), "no luck").unwrap();
+        fs::write(tmp.path().join("c.txt"), "another match").unwrap();
+
+        let results = search_in_files(tmp.path().to_string_lossy().to_string(), "match".to_string()).unwrap();
+        assert_eq!(results.len(), 2);
     }
 }
