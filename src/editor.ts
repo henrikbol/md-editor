@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
@@ -16,6 +16,15 @@ let cursorCallback: CursorCallback | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const DEBOUNCE_MS = 150;
+
+const fontSizeCompartment = new Compartment();
+
+function fontSizeTheme(size: number) {
+  return EditorView.theme({
+    ".cm-content": { fontSize: size + "px" },
+    ".cm-gutters": { fontSize: size + "px" },
+  });
+}
 
 export function initEditor(container: HTMLElement, onChange: ChangeCallback): EditorView {
   changeCallback = onChange;
@@ -47,6 +56,7 @@ export function initEditor(container: HTMLElement, onChange: ChangeCallback): Ed
           cursorCallback?.(line.number, pos - line.from + 1);
         }
       }),
+      fontSizeCompartment.of(fontSizeTheme(14)),
       EditorView.theme({
         "&": { height: "100%" },
         ".cm-scroller": { overflow: "auto" },
@@ -78,6 +88,13 @@ export function getContent(): string {
 
 export function onCursorChange(callback: CursorCallback): void {
   cursorCallback = callback;
+}
+
+export function setFontSize(size: number): void {
+  if (!view) return;
+  view.dispatch({
+    effects: fontSizeCompartment.reconfigure(fontSizeTheme(size)),
+  });
 }
 
 export function onEditorScroll(callback: (topLine: number) => void): void {

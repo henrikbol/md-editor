@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import { initEditor, setContent, getContent, onCursorChange } from "./editor";
+import { initEditor, setContent, getContent, onCursorChange, setFontSize } from "./editor";
 import { initPreview, updatePreview } from "./preview";
 import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
 import { initScrollSync, resyncScroll } from "./scroll-sync";
@@ -8,6 +8,20 @@ import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType } 
 
 let currentFilePath: string | null = null;
 let isDirty = false;
+
+const DEFAULT_FONT_SIZE = 14;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+let currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE,
+  parseInt(localStorage.getItem("editorFontSize") || String(DEFAULT_FONT_SIZE), 10) || DEFAULT_FONT_SIZE
+));
+
+function applyFontSize(size: number) {
+  currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
+  setFontSize(currentFontSize);
+  document.documentElement.style.setProperty("--editor-font-size", currentFontSize + "px");
+  localStorage.setItem("editorFontSize", String(currentFontSize));
+}
 
 function updateTitle() {
   const fileName = currentFilePath
@@ -129,6 +143,15 @@ function setupKeyboardShortcuts() {
     } else if (mod && e.key === "s") {
       e.preventDefault();
       await saveFile();
+    } else if (e.metaKey && (e.key === "=" || e.key === "+")) {
+      e.preventDefault();
+      applyFontSize(currentFontSize + 1);
+    } else if (e.metaKey && e.key === "-") {
+      e.preventDefault();
+      applyFontSize(currentFontSize - 1);
+    } else if (e.metaKey && e.key === "0") {
+      e.preventDefault();
+      applyFontSize(DEFAULT_FONT_SIZE);
     }
   });
 }
@@ -177,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initPreview(previewContent, resyncScroll);
   onCursorChange((line, col) => updateCursorPosition(line, col));
   initEditor(editorPane, handleEditorChange);
+  applyFontSize(currentFontSize);
   initScrollSync(previewPane);
   initSidebar(fileList, openFolderBtn, handleFileOpen);
   setupDivider();
