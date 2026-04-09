@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { initEditor, setContent, getContent, onCursorChange, setFontSize } from "./editor";
 import { initPreview, updatePreview } from "./preview";
@@ -205,6 +206,20 @@ document.addEventListener("DOMContentLoaded", () => {
   initSidebar(fileList, openFolderBtn, handleFileOpen);
   setupDivider();
   setupKeyboardShortcuts();
+
+  listen<string>("zoom-action", (event) => {
+    switch (event.payload) {
+      case "zoom-in":
+        applyFontSize(currentFontSize + 1);
+        break;
+      case "zoom-out":
+        applyFontSize(currentFontSize - 1);
+        break;
+      case "reset-zoom":
+        applyFontSize(DEFAULT_FONT_SIZE);
+        break;
+    }
+  });
 
   // Load welcome content
   setContent(WELCOME_TEXT);
