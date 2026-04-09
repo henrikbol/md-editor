@@ -7,6 +7,7 @@ import { initPreview, updatePreview } from "./preview";
 import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
 import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType, clearStatusBar } from "./statusbar";
+import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty } from "./tab-bar";
 
 interface BufferEntry {
   editorState: EditorState;
@@ -36,6 +37,20 @@ function extractFileName(path: string): string {
   return path.split("/").pop() ?? "Untitled";
 }
 
+function showEmptyState() {
+  const emptyState = document.getElementById("empty-state");
+  const contentRow = document.getElementById("content-row");
+  if (emptyState) emptyState.style.display = "flex";
+  if (contentRow) contentRow.style.display = "none";
+}
+
+function showContentArea() {
+  const emptyState = document.getElementById("empty-state");
+  const contentRow = document.getElementById("content-row");
+  if (emptyState) emptyState.style.display = "none";
+  if (contentRow) contentRow.style.display = "flex";
+}
+
 function updateTitle() {
   let fileName = "Untitled";
   let dirty = false;
@@ -58,6 +73,7 @@ async function handleEditorChange(content: string) {
   if (activeBufferPath) {
     const buf = buffers.get(activeBufferPath);
     if (buf) buf.isDirty = true;
+    setTabDirty(activeBufferPath, true);
   }
   updateTitle();
   updateWordCount(countWords(content));
@@ -82,14 +98,22 @@ function handleFileOpen(path: string, content: string) {
   resetScrollSync();
 
   // Store the new buffer
+  const fileName = extractFileName(path);
   buffers.set(path, {
     editorState: newState,
     scrollTop: 0,
     isDirty: false,
-    fileName: extractFileName(path),
+    fileName,
   });
 
+  // Show content area if this is the first buffer
+  if (buffers.size === 1) {
+    showContentArea();
+  }
+
+  addTab(path, fileName);
   activeBufferPath = path;
+  setActiveTab(path);
   setActivePath(path);
   updateTitle();
   updateWordCount(countWords(content));
@@ -129,6 +153,7 @@ function switchToBuffer(path: string) {
   });
 
   activeBufferPath = path;
+  setActiveTab(path);
   setActivePath(path);
 
   const content = getContent();
@@ -155,8 +180,9 @@ async function closeBuffer(path: string) {
     }
   }
 
-  // Remove from buffers
+  // Remove from buffers and tab bar
   buffers.delete(path);
+  removeTab(path);
 
   if (activeBufferPath === path) {
     // Switch to another buffer if available
@@ -174,6 +200,7 @@ async function closeBuffer(path: string) {
       updatePreview("");
       clearStatusBar();
       document.title = "MD Editor";
+      showEmptyState();
     }
   }
 }
@@ -189,6 +216,7 @@ async function saveFile() {
     await invoke("write_file", { path: activeBufferPath, content });
     const buf = buffers.get(activeBufferPath);
     if (buf) buf.isDirty = false;
+    setTabDirty(activeBufferPath, false);
     updateTitle();
   } catch (e) {
     console.error("Failed to save:", e);
@@ -216,16 +244,21 @@ async function saveFileAs() {
           const state = getEditorState();
           if (state) oldBuf.editorState = state;
           buffers.set(path, oldBuf);
+          removeTab(activeBufferPath);
+          addTab(path, oldBuf.fileName);
         }
       } else if (!activeBufferPath) {
         // No active buffer (e.g. welcome state) — create one
+        const newFileName = extractFileName(path);
         const state = getEditorState();
         buffers.set(path, {
           editorState: state!,
           scrollTop: 0,
           isDirty: false,
-          fileName: extractFileName(path),
+          fileName: newFileName,
         });
+        if (buffers.size === 1) showContentArea();
+        addTab(path, newFileName);
       } else {
         // Same path
         const buf = buffers.get(path);
@@ -233,6 +266,8 @@ async function saveFileAs() {
       }
 
       activeBufferPath = path;
+      setActiveTab(path);
+      setTabDirty(path, false);
       setActivePath(path);
       updateTitle();
     } catch (e) {
@@ -350,6 +385,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const previewPane = document.getElementById("preview-pane")!;
   const statusBar = document.getElementById("status-bar")!;
+
+  const tabBar = document.getElementById("tab-bar")!;
+  initTabBar(
+    tabBar,
+    (path) => switchToBuffer(path),
+    (path) => closeBuffer(path)
+  );
 
   initStatusBar(statusBar);
   initPreview(previewContent, resyncScroll);
