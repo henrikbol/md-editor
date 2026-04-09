@@ -4,17 +4,33 @@ let previewPane: HTMLElement | null = null;
 let pendingRaf: number | null = null;
 let lastTopLine = 1;
 
+let scrollCallback: ((topLine: number) => void) | null = null;
+
 export function initScrollSync(pane: HTMLElement): void {
   previewPane = pane;
 
-  onEditorScroll((topLine) => {
+  scrollCallback = (topLine: number) => {
     lastTopLine = topLine;
     if (pendingRaf !== null) return;
     pendingRaf = requestAnimationFrame(() => {
       pendingRaf = null;
       syncPreviewToLine(lastTopLine, true);
     });
-  });
+  };
+
+  onEditorScroll(scrollCallback);
+}
+
+/**
+ * Re-bind the scroll listener after view.setState() which replaces the scroller DOM.
+ * Resets lastTopLine to 1 for a fresh scroll position.
+ */
+export function resetScrollSync(): void {
+  lastTopLine = 1;
+  if (!scrollCallback) return;
+  // After setState(), the old scrollDOM and its listeners are gone.
+  // onEditorScroll binds a new listener to the current view.scrollDOM.
+  onEditorScroll(scrollCallback);
 }
 
 export function resyncScroll(): void {
