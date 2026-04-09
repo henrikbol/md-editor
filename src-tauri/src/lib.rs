@@ -16,6 +16,10 @@ pub fn run() {
             files::read_file,
             files::write_file,
             files::list_directory,
+            files::create_file,
+            files::create_directory,
+            files::rename_entry,
+            files::delete_entry,
         ])
         .setup(|app| {
             let zoom_in =
