@@ -26,42 +26,46 @@ function fontSizeTheme(size: number) {
   });
 }
 
+function buildExtensions() {
+  return [
+    lineNumbers(),
+    highlightActiveLine(),
+    drawSelection(),
+    bracketMatching(),
+    closeBrackets(),
+    history(),
+    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    syntaxHighlighting(defaultHighlightStyle),
+    oneDark,
+    keymap.of([
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...closeBracketsKeymap,
+    ]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        debouncedChange(update.state.doc.toString());
+      }
+      if (update.selectionSet) {
+        const pos = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(pos);
+        cursorCallback?.(line.number, pos - line.from + 1);
+      }
+    }),
+    fontSizeCompartment.of(fontSizeTheme(14)),
+    EditorView.theme({
+      "&": { height: "100%" },
+      ".cm-scroller": { overflow: "auto" },
+    }),
+  ];
+}
+
 export function initEditor(container: HTMLElement, onChange: ChangeCallback): EditorView {
   changeCallback = onChange;
 
   const state = EditorState.create({
     doc: "",
-    extensions: [
-      lineNumbers(),
-      highlightActiveLine(),
-      drawSelection(),
-      bracketMatching(),
-      closeBrackets(),
-      history(),
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
-      syntaxHighlighting(defaultHighlightStyle),
-      oneDark,
-      keymap.of([
-        ...defaultKeymap,
-        ...historyKeymap,
-        ...closeBracketsKeymap,
-      ]),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          debouncedChange(update.state.doc.toString());
-        }
-        if (update.selectionSet) {
-          const pos = update.state.selection.main.head;
-          const line = update.state.doc.lineAt(pos);
-          cursorCallback?.(line.number, pos - line.from + 1);
-        }
-      }),
-      fontSizeCompartment.of(fontSizeTheme(14)),
-      EditorView.theme({
-        "&": { height: "100%" },
-        ".cm-scroller": { overflow: "auto" },
-      }),
-    ],
+    extensions: buildExtensions(),
   });
 
   view = new EditorView({ state, parent: container });
@@ -105,4 +109,24 @@ export function onEditorScroll(callback: (topLine: number) => void): void {
     const line = view.state.doc.lineAt(block.from);
     callback(line.number);
   });
+}
+
+export function createEditorState(content: string): EditorState {
+  return EditorState.create({
+    doc: content,
+    extensions: buildExtensions(),
+  });
+}
+
+export function getEditorState(): EditorState | null {
+  return view ? view.state : null;
+}
+
+export function setEditorState(state: EditorState): void {
+  if (!view) return;
+  view.setState(state);
+}
+
+export function getScrollDOM(): HTMLElement | null {
+  return view ? view.scrollDOM : null;
 }

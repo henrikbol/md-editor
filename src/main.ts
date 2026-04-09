@@ -1,14 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
-import { initEditor, setContent, getContent, onCursorChange, setFontSize } from "./editor";
+import { ask, save } from "@tauri-apps/plugin-dialog";
+import { EditorState } from "@codemirror/state";
+import { initEditor, setContent, getContent, onCursorChange, setFontSize, createEditorState, getEditorState, setEditorState, getScrollDOM } from "./editor";
 import { initPreview, updatePreview } from "./preview";
-import { initSidebar, openFileDialog, getActivePath, setActivePath } from "./sidebar";
-import { initScrollSync, resyncScroll } from "./scroll-sync";
-import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType } from "./statusbar";
+import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
+import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
+import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType, clearStatusBar } from "./statusbar";
+import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty } from "./tab-bar";
 
-let currentFilePath: string | null = null;
-let isDirty = false;
+interface BufferEntry {
+  editorState: EditorState;
+  scrollTop: number;
+  isDirty: boolean;
+  fileName: string;
+}
+
+let buffers: Map<string, BufferEntry> = new Map();
+let activeBufferPath: string | null = null;
 
 const DEFAULT_FONT_SIZE = 14;
 const MIN_FONT_SIZE = 8;
@@ -24,11 +33,35 @@ function applyFontSize(size: number) {
   localStorage.setItem("editorFontSize", String(currentFontSize));
 }
 
+function extractFileName(path: string): string {
+  return path.split("/").pop() ?? "Untitled";
+}
+
+function showEmptyState() {
+  const emptyState = document.getElementById("empty-state");
+  const contentRow = document.getElementById("content-row");
+  if (emptyState) emptyState.style.display = "flex";
+  if (contentRow) contentRow.style.display = "none";
+}
+
+function showContentArea() {
+  const emptyState = document.getElementById("empty-state");
+  const contentRow = document.getElementById("content-row");
+  if (emptyState) emptyState.style.display = "none";
+  if (contentRow) contentRow.style.display = "flex";
+}
+
 function updateTitle() {
-  const fileName = currentFilePath
-    ? currentFilePath.split("/").pop() ?? "Untitled"
-    : "Untitled";
-  const dirtyMark = isDirty ? " *" : "";
+  let fileName = "Untitled";
+  let dirty = false;
+  if (activeBufferPath) {
+    const buf = buffers.get(activeBufferPath);
+    if (buf) {
+      fileName = buf.fileName;
+      dirty = buf.isDirty;
+    }
+  }
+  const dirtyMark = dirty ? " *" : "";
   document.title = `${fileName}${dirtyMark} - MD Editor`;
 }
 
@@ -37,33 +70,153 @@ function countWords(text: string): number {
 }
 
 async function handleEditorChange(content: string) {
-  isDirty = true;
+  if (activeBufferPath) {
+    const buf = buffers.get(activeBufferPath);
+    if (buf) buf.isDirty = true;
+    setTabDirty(activeBufferPath, true);
+  }
   updateTitle();
   updateWordCount(countWords(content));
   await updatePreview(content);
 }
 
 function handleFileOpen(path: string, content: string) {
-  currentFilePath = path;
+  // If this file is already open, just switch to it
+  if (buffers.has(path)) {
+    switchToBuffer(path);
+    return;
+  }
+
+  // Save current buffer state before opening new one
+  saveCurrentBufferState();
+
+  // Create a fresh EditorState for the new file
+  const newState = createEditorState(content);
+  setEditorState(newState);
+
+  // Reset scroll sync since setState replaces the scroller DOM
+  resetScrollSync();
+
+  // Store the new buffer
+  const fileName = extractFileName(path);
+  buffers.set(path, {
+    editorState: newState,
+    scrollTop: 0,
+    isDirty: false,
+    fileName,
+  });
+
+  // Show content area if this is the first buffer
+  if (buffers.size === 1) {
+    showContentArea();
+  }
+
+  addTab(path, fileName);
+  activeBufferPath = path;
+  setActiveTab(path);
   setActivePath(path);
-  setContent(content);
-  isDirty = false;
   updateTitle();
   updateWordCount(countWords(content));
   updateFileType("Markdown");
   updatePreview(content);
 }
 
+function saveCurrentBufferState() {
+  if (!activeBufferPath) return;
+  const buf = buffers.get(activeBufferPath);
+  if (!buf) return;
+  const state = getEditorState();
+  if (state) buf.editorState = state;
+  const scrollDOM = getScrollDOM();
+  if (scrollDOM) buf.scrollTop = scrollDOM.scrollTop;
+}
+
+function switchToBuffer(path: string) {
+  if (path === activeBufferPath) return;
+
+  const target = buffers.get(path);
+  if (!target) return;
+
+  // Save current buffer state
+  saveCurrentBufferState();
+
+  // Load target buffer state
+  setEditorState(target.editorState);
+
+  // Reset scroll sync since setState replaces the scroller DOM
+  resetScrollSync();
+
+  // Restore scroll position after the DOM settles
+  requestAnimationFrame(() => {
+    const scrollDOM = getScrollDOM();
+    if (scrollDOM) scrollDOM.scrollTop = target.scrollTop;
+  });
+
+  activeBufferPath = path;
+  setActiveTab(path);
+  setActivePath(path);
+
+  const content = getContent();
+  updateTitle();
+  updateWordCount(countWords(content));
+  updateFileType("Markdown");
+  updatePreview(content);
+}
+
+async function closeBuffer(path: string) {
+  const buf = buffers.get(path);
+  if (!buf) return;
+
+  // Prompt to save if dirty
+  if (buf.isDirty) {
+    const shouldSave = await ask(`Save changes to ${buf.fileName}?`, {
+      title: "Unsaved Changes",
+      kind: "warning",
+      okLabel: "Save",
+      cancelLabel: "Don't Save",
+    });
+    if (shouldSave) {
+      await saveFile();
+    }
+  }
+
+  // Remove from buffers and tab bar
+  buffers.delete(path);
+  removeTab(path);
+
+  if (activeBufferPath === path) {
+    // Switch to another buffer if available
+    const remaining = Array.from(buffers.keys());
+    if (remaining.length > 0) {
+      activeBufferPath = null; // Clear so switchToBuffer doesn't try to save the closed buffer
+      switchToBuffer(remaining[remaining.length - 1]);
+    } else {
+      // No buffers left — clear everything
+      activeBufferPath = null;
+      const emptyState = createEditorState("");
+      setEditorState(emptyState);
+      resetScrollSync();
+      setActivePath("");
+      updatePreview("");
+      clearStatusBar();
+      document.title = "MD Editor";
+      showEmptyState();
+    }
+  }
+}
+
 async function saveFile() {
   const content = getContent();
 
-  if (!currentFilePath) {
+  if (!activeBufferPath) {
     return saveFileAs();
   }
 
   try {
-    await invoke("write_file", { path: currentFilePath, content });
-    isDirty = false;
+    await invoke("write_file", { path: activeBufferPath, content });
+    const buf = buffers.get(activeBufferPath);
+    if (buf) buf.isDirty = false;
+    setTabDirty(activeBufferPath, false);
     updateTitle();
   } catch (e) {
     console.error("Failed to save:", e);
@@ -80,9 +233,42 @@ async function saveFileAs() {
   if (path) {
     try {
       await invoke("write_file", { path, content });
-      currentFilePath = path;
+
+      // If we had an active buffer, remove it under the old path
+      if (activeBufferPath && activeBufferPath !== path) {
+        const oldBuf = buffers.get(activeBufferPath);
+        if (oldBuf) {
+          buffers.delete(activeBufferPath);
+          oldBuf.fileName = extractFileName(path);
+          oldBuf.isDirty = false;
+          const state = getEditorState();
+          if (state) oldBuf.editorState = state;
+          buffers.set(path, oldBuf);
+          removeTab(activeBufferPath);
+          addTab(path, oldBuf.fileName);
+        }
+      } else if (!activeBufferPath) {
+        // No active buffer (e.g. welcome state) — create one
+        const newFileName = extractFileName(path);
+        const state = getEditorState();
+        buffers.set(path, {
+          editorState: state!,
+          scrollTop: 0,
+          isDirty: false,
+          fileName: newFileName,
+        });
+        if (buffers.size === 1) showContentArea();
+        addTab(path, newFileName);
+      } else {
+        // Same path
+        const buf = buffers.get(path);
+        if (buf) buf.isDirty = false;
+      }
+
+      activeBufferPath = path;
+      setActiveTab(path);
+      setTabDirty(path, false);
       setActivePath(path);
-      isDirty = false;
       updateTitle();
     } catch (e) {
       console.error("Failed to save:", e);
@@ -153,6 +339,9 @@ function setupKeyboardShortcuts() {
     } else if (e.metaKey && e.key === "0") {
       e.preventDefault();
       applyFontSize(DEFAULT_FONT_SIZE);
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "w") {
+      e.preventDefault();
+      if (activeBufferPath) closeBuffer(activeBufferPath);
     }
   });
 }
@@ -191,11 +380,18 @@ function hello(name) {
 document.addEventListener("DOMContentLoaded", () => {
   const editorPane = document.getElementById("editor-pane")!;
   const previewContent = document.getElementById("preview-content")!;
-  const fileList = document.getElementById("file-list")!;
+  const fileTree = document.getElementById("file-tree")!;
   const openFolderBtn = document.getElementById("open-folder-btn")!;
 
   const previewPane = document.getElementById("preview-pane")!;
   const statusBar = document.getElementById("status-bar")!;
+
+  const tabBar = document.getElementById("tab-bar")!;
+  initTabBar(
+    tabBar,
+    (path) => switchToBuffer(path),
+    (path) => closeBuffer(path)
+  );
 
   initStatusBar(statusBar);
   initPreview(previewContent, resyncScroll);
@@ -203,7 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initEditor(editorPane, handleEditorChange);
   applyFontSize(currentFontSize);
   initScrollSync(previewPane);
-  initSidebar(fileList, openFolderBtn, handleFileOpen);
+  initFileTree(fileTree, openFolderBtn, handleFileOpen);
   setupDivider();
   setupKeyboardShortcuts();
 

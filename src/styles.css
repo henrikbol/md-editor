@@ -115,39 +115,85 @@ html, body {
   color: var(--text-primary);
 }
 
-#file-list {
-  list-style: none;
+#file-tree {
   overflow-y: auto;
   flex: 1;
   padding: 4px 0;
+  outline: none;
 }
 
-#file-list li {
-  padding: 6px 16px;
+.tree-item {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
   cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
+  user-select: none;
   white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.tree-item:hover {
+  background: rgba(97, 175, 239, 0.05);
+}
+
+.tree-item.active {
+  background: rgba(97, 175, 239, 0.1);
+}
+
+.tree-item.focused {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tree-item.muted {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tree-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-#file-list li:hover {
+.tree-arrow {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.tree-arrow.empty {
+  /* spacer for files to align with folder names */
+}
+
+.indent-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
   background: var(--border);
-  color: var(--text-primary);
+  pointer-events: none;
 }
 
-#file-list li.active {
-  background: rgba(97, 175, 239, 0.1);
-  color: var(--accent);
+.file-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
-#file-list li.directory::before {
-  content: "\01F4C1 ";
-}
-
-#file-list li.file::before {
-  content: "\01F4C4 ";
+.file-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Editor pane */
@@ -331,6 +377,101 @@ html, body {
 
 #preview-content input[type="checkbox"] {
   margin-right: 6px;
+}
+
+/* Tab bar */
+#tab-bar {
+  display: flex;
+  align-items: center;
+  height: 35px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  /* Hide scrollbar but allow scroll */
+  scrollbar-width: none;
+}
+
+#tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 100%;
+  min-width: 0;
+  max-width: 200px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border);
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--accent);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-dirty {
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+  display: none;
+}
+
+.tab-dirty.visible {
+  display: inline;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+#empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 16px;
+  gap: 8px;
 }
 
 /* Scrollbar styling */

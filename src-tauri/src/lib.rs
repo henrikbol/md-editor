@@ -15,7 +15,7 @@ pub fn run() {
             md_commands::parse_markdown,
             files::read_file,
             files::write_file,
-            files::list_markdown_files,
+            files::list_directory,
         ])
         .setup(|app| {
             let zoom_in =
