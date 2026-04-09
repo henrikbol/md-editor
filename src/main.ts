@@ -7,8 +7,10 @@ import { initPreview, updatePreview } from "./preview";
 import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
 import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType, clearStatusBar } from "./statusbar";
-import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty } from "./tab-bar";
-import { initActivityBar } from "./activity-bar";
+import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty, updateTabPath } from "./tab-bar";
+import { initActivityBar, switchPanel } from "./activity-bar";
+import { initSearchPanel } from "./search-panel";
+import { scrollToLine } from "./editor";
 
 interface BufferEntry {
   editorState: EditorState;
@@ -319,6 +321,21 @@ function setupDivider() {
   });
 }
 
+async function handleSearchResultClick(path: string, line: number) {
+  if (buffers.has(path)) {
+    switchToBuffer(path);
+    requestAnimationFrame(() => scrollToLine(line));
+  } else {
+    try {
+      const content = await invoke<string>("read_file", { path });
+      handleFileOpen(path, content);
+      requestAnimationFrame(() => scrollToLine(line));
+    } catch (e) {
+      console.error("Failed to open search result:", e);
+    }
+  }
+}
+
 function setupKeyboardShortcuts() {
   document.addEventListener("keydown", async (e) => {
     const mod = e.metaKey || e.ctrlKey;
@@ -341,6 +358,12 @@ function setupKeyboardShortcuts() {
     } else if (e.metaKey && e.key === "0") {
       e.preventDefault();
       applyFontSize(DEFAULT_FONT_SIZE);
+    } else if (e.metaKey && e.shiftKey && e.key === "f") {
+      e.preventDefault();
+      switchPanel('search');
+      requestAnimationFrame(() => {
+        (document.getElementById('search-input') as HTMLInputElement)?.focus();
+      });
     } else if ((e.metaKey || e.ctrlKey) && e.key === "w") {
       e.preventDefault();
       if (activeBufferPath) closeBuffer(activeBufferPath);
@@ -401,11 +424,57 @@ document.addEventListener("DOMContentLoaded", () => {
   initEditor(editorPane, handleEditorChange);
   applyFontSize(currentFontSize);
   initScrollSync(previewPane);
-  initFileTree(fileTree, openFolderBtn, handleFileOpen);
+  initFileTree(
+    fileTree,
+    openFolderBtn,
+    handleFileOpen,
+    // On delete: close buffer if open
+    (deletedPath: string) => {
+      if (buffers.has(deletedPath)) {
+        removeTab(deletedPath);
+        buffers.delete(deletedPath);
+        if (activeBufferPath === deletedPath) {
+          const remaining = Array.from(buffers.keys());
+          if (remaining.length > 0) {
+            activeBufferPath = null;
+            switchToBuffer(remaining[remaining.length - 1]);
+          } else {
+            activeBufferPath = null;
+            const emptyState = createEditorState("");
+            setEditorState(emptyState);
+            resetScrollSync();
+            setActivePath("");
+            updatePreview("");
+            clearStatusBar();
+            document.title = "MD Editor";
+            showEmptyState();
+          }
+        }
+      }
+    },
+    // On rename: update buffer path and tab
+    (oldPath: string, newPath: string, newName: string) => {
+      if (buffers.has(oldPath)) {
+        const entry = buffers.get(oldPath)!;
+        entry.fileName = newName;
+        buffers.delete(oldPath);
+        buffers.set(newPath, entry);
+        updateTabPath(oldPath, newPath, newName);
+        if (activeBufferPath === oldPath) {
+          activeBufferPath = newPath;
+          setActivePath(newPath);
+          updateTitle();
+        }
+      }
+    },
+  );
 
   const activityBar = document.getElementById('activity-bar')!;
   const sidebar = document.getElementById('sidebar')!;
   initActivityBar(activityBar, sidebar);
+
+  const searchPanel = document.getElementById('search-panel')!;
+  initSearchPanel(searchPanel, handleSearchResultClick);
 
   setupDivider();
   setupKeyboardShortcuts();
