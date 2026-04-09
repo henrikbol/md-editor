@@ -73,6 +73,47 @@ html, body {
   color: var(--text-primary);
 }
 
+/* Activity bar */
+#activity-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  padding-top: 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.activity-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: 0;
+}
+
+.activity-icon:hover {
+  color: var(--text-primary);
+}
+
+.activity-icon.active {
+  color: var(--text-primary);
+  background: rgba(97, 175, 239, 0.1);
+}
+
+.activity-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
 /* Sidebar */
 #sidebar {
   width: var(--sidebar-width);
@@ -82,6 +123,20 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+#sidebar-panel-explorer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+#sidebar-panel-search {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 #sidebar-header {

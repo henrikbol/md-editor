@@ -8,6 +8,7 @@ import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
 import { initStatusBar, updateCursorPosition, updateWordCount, updateFileType, clearStatusBar } from "./statusbar";
 import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty } from "./tab-bar";
+import { initActivityBar } from "./activity-bar";
 
 interface BufferEntry {
   editorState: EditorState;
@@ -299,8 +300,9 @@ function setupDivider() {
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
-    const sidebar = document.getElementById("sidebar")!;
-    const containerLeft = sidebar.offsetWidth;
+    const sidebarEl = document.getElementById("sidebar")!;
+    const activityBarEl = document.getElementById("activity-bar")!;
+    const containerLeft = activityBarEl.offsetWidth + sidebarEl.offsetWidth;
     const containerWidth = window.innerWidth - containerLeft;
     const relativeX = e.clientX - containerLeft;
     const ratio = Math.max(0.2, Math.min(0.8, relativeX / containerWidth));
@@ -400,6 +402,11 @@ document.addEventListener("DOMContentLoaded", () => {
   applyFontSize(currentFontSize);
   initScrollSync(previewPane);
   initFileTree(fileTree, openFolderBtn, handleFileOpen);
+
+  const activityBar = document.getElementById('activity-bar')!;
+  const sidebar = document.getElementById('sidebar')!;
+  initActivityBar(activityBar, sidebar);
+
   setupDivider();
   setupKeyboardShortcuts();
 
