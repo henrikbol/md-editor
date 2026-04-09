@@ -1,7 +1,7 @@
 ---
 title: "feat: VSCode-like editor experience"
 type: feat
-status: active
+status: completed
 date: 2026-04-09
 origin: docs/brainstorms/vscode-experience-requirements.md
 ---

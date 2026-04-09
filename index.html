@@ -8,12 +8,30 @@
   </head>
   <body>
     <div id="app">
+      <div id="activity-bar">
+        <button class="activity-icon active" data-panel="explorer" title="Explorer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"/>
+          </svg>
+        </button>
+        <button class="activity-icon" data-panel="search" title="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M16 16l4 4"/>
+          </svg>
+        </button>
+      </div>
       <aside id="sidebar">
-        <div id="sidebar-header">
-          <h2>Files</h2>
-          <button id="open-folder-btn" title="Open folder"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h4l1.5 1.5h6.5a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z" fill="currentColor" opacity="0.7"/></svg></button>
+        <div id="sidebar-panel-explorer">
+          <div id="sidebar-header">
+            <h2>Files</h2>
+            <button id="open-folder-btn" title="Open folder"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 2.5h4l1.5 1.5h6.5a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z" fill="currentColor" opacity="0.7"/></svg></button>
+          </div>
+          <div id="file-tree" role="tree" tabindex="0"></div>
         </div>
-        <div id="file-tree" role="tree" tabindex="0"></div>
+        <div id="sidebar-panel-search" style="display:none;">
+          <div id="search-panel"></div>
+        </div>
       </aside>
       <div id="main-area">
         <div id="tab-bar"></div>

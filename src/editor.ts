@@ -130,3 +130,15 @@ export function setEditorState(state: EditorState): void {
 export function getScrollDOM(): HTMLElement | null {
   return view ? view.scrollDOM : null;
 }
+
+export function scrollToLine(line: number): void {
+  if (!view) return;
+  const lineCount = view.state.doc.lines;
+  const clampedLine = Math.max(1, Math.min(line, lineCount));
+  const lineInfo = view.state.doc.line(clampedLine);
+  view.dispatch({
+    selection: { anchor: lineInfo.from },
+    effects: EditorView.scrollIntoView(lineInfo.from, { y: "center" }),
+  });
+  view.focus();
+}
