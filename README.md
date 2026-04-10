@@ -41,7 +41,7 @@ npm run tauri dev
 
 ```bash
 # Build a production .dmg / .app bundle
-npm run tauri build
+npm run tauri build -- --bundles app,dmg
 ```
 
 The output will be in `src-tauri/target/release/bundle/`:
