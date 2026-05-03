@@ -202,17 +202,25 @@ html, body {
   color: var(--text-secondary);
 }
 
-#open-folder-btn {
+.sidebar-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.sidebar-icon-btn {
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 16px;
   padding: 4px;
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
 }
 
-#open-folder-btn:hover {
+.sidebar-icon-btn:hover {
   background: var(--border);
   color: var(--text-primary);
 }

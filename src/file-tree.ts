@@ -47,7 +47,6 @@ function isMarkdown(name: string): boolean {
 
 export function initFileTree(
   container: HTMLElement,
-  openFolderBtn: HTMLElement,
   callback: FileOpenCallback,
   onFileDeleteCb?: (path: string) => void,
   onFileRenameCb?: (oldPath: string, newPath: string, newName: string) => void,
@@ -57,7 +56,6 @@ export function initFileTree(
   onFileDelete = onFileDeleteCb || null;
   onFileRename = onFileRenameCb || null;
 
-  openFolderBtn.addEventListener("click", openFolder);
   container.addEventListener("keydown", handleKeyDown);
   container.addEventListener("contextmenu", handleContextMenu);
 
@@ -68,7 +66,7 @@ export function initFileTree(
   });
 }
 
-async function openFolder(): Promise<void> {
+export async function openFolder(): Promise<void> {
   const selected = await open({
     directory: true,
     multiple: false,
@@ -448,7 +446,7 @@ function getParentDir(path: string): string {
   return idx > 0 ? path.substring(0, idx) : path;
 }
 
-async function handleNewFile(targetPath: string, isDir: boolean): Promise<void> {
+export async function handleNewFile(targetPath: string, isDir: boolean): Promise<void> {
   const parentDir = isDir ? targetPath : getParentDir(targetPath);
   const newPath = parentDir + "/untitled";
 
@@ -476,7 +474,7 @@ async function handleNewFile(targetPath: string, isDir: boolean): Promise<void> 
   startInlineRename(newPath);
 }
 
-async function handleNewFolder(targetPath: string, isDir: boolean): Promise<void> {
+export async function handleNewFolder(targetPath: string, isDir: boolean): Promise<void> {
   const parentDir = isDir ? targetPath : getParentDir(targetPath);
   const newPath = parentDir + "/untitled-folder";
 
@@ -618,7 +616,7 @@ function startInlineRename(targetPath: string): void {
 
 // ── Refresh directory ──
 
-async function refreshDirectory(dirPath: string): Promise<void> {
+export async function refreshDirectory(dirPath: string): Promise<void> {
   // Find the node for this directory in the tree and reload its children
   if (!fileTreeEl) return;
 

@@ -394,8 +394,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const editorPane = document.getElementById("editor-pane")!;
   const previewContent = document.getElementById("preview-content")!;
   const fileTree = document.getElementById("file-tree")!;
-  const openFolderBtn = document.getElementById("open-folder-btn")!;
-
   const previewPane = document.getElementById("preview-pane")!;
   const bottomBar = document.getElementById("bottom-bar")!;
 
@@ -414,7 +412,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollSync(previewPane);
   initFileTree(
     fileTree,
-    openFolderBtn,
     handleFileOpen,
     // On delete: close buffer if open
     (deletedPath: string) => {
