@@ -68,7 +68,7 @@ function updateTitle() {
     }
   }
   const dirtyMark = dirty ? " *" : "";
-  document.title = `${fileName}${dirtyMark} - MD Editor`;
+  document.title = `${fileName}${dirtyMark} - Marrow`;
 }
 
 function countWords(text: string): number {
@@ -205,7 +205,7 @@ async function closeBuffer(path: string) {
       setActivePath("");
       updatePreview("");
       clearBottomBar();
-      document.title = "MD Editor";
+      document.title = "Marrow";
       showEmptyState();
     }
   }
@@ -388,7 +388,7 @@ function setupKeyboardShortcuts() {
   });
 }
 
-const WELCOME_TEXT = `# Welcome to MD Editor
+const WELCOME_TEXT = `# Welcome to Marrow
 
 Start typing your markdown here, and see the **live preview** on the right.
 
@@ -467,7 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setActivePath("");
             updatePreview("");
             clearBottomBar();
-            document.title = "MD Editor";
+            document.title = "Marrow";
             showEmptyState();
           }
         }
