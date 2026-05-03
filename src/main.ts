@@ -4,7 +4,7 @@ import { ask, save } from "@tauri-apps/plugin-dialog";
 import { EditorState } from "@codemirror/state";
 import { initEditor, setContent, getContent, onCursorChange, setFontSize, createEditorState, getEditorState, setEditorState, getScrollDOM, getEditorView } from "./editor";
 import { initPreview, updatePreview } from "./preview";
-import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
+import { initFileTree, openFileDialog, setActivePath, openFolder, handleNewFile, handleNewFolder, refreshDirectory, getWorkspaceRoot } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
 import { initBottomBar, updateCursorPosition, updateWordCount, updateFileType, clearBottomBar } from "./bottom-bar";
 import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty, updateTabPath } from "./tab-bar";
@@ -456,7 +456,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const activityBar = document.getElementById('activity-bar')!;
   const sidebar = document.getElementById('sidebar')!;
-  initActivityBar(activityBar, sidebar);
+  initActivityBar(activityBar, sidebar, openFolder);
+
+  sidebar.querySelectorAll<HTMLButtonElement>('.sidebar-icon-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-action');
+      if (action === 'new-file') {
+        const root = getWorkspaceRoot();
+        handleNewFile(root ?? '', root !== null);
+      } else if (action === 'new-folder') {
+        const root = getWorkspaceRoot();
+        handleNewFolder(root ?? '', root !== null);
+      } else if (action === 'refresh') {
+        const root = getWorkspaceRoot();
+        if (root) refreshDirectory(root);
+      }
+    });
+  });
 
   const searchPanel = document.getElementById('search-panel')!;
   initSearchPanel(searchPanel, handleSearchResultClick);
