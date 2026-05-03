@@ -602,6 +602,26 @@ html, body {
   scrollbar-width: none;
 }
 
+#editor-toggle-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  border-radius: 4px;
+}
+
+#editor-toggle-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
 #tab-bar::-webkit-scrollbar {
   display: none;
 }

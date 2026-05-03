@@ -324,6 +324,32 @@ function setupDivider() {
   });
 }
 
+let editorFlexRatio: number = 0.5;
+let editorVisible: boolean = true;
+
+function toggleEditorPane() {
+  const contentRow = document.getElementById("content-row");
+  if (!contentRow || contentRow.style.display === "none") return;
+
+  const editorPane = document.getElementById("editor-pane")!;
+  const divider = document.getElementById("divider")!;
+
+  if (editorVisible) {
+    editorFlexRatio = parseFloat(editorPane.style.flex) || 0.5;
+    editorPane.style.display = "none";
+    divider.style.display = "none";
+    editorVisible = false;
+  } else {
+    editorPane.style.display = "";
+    editorPane.style.flex = String(editorFlexRatio);
+    divider.style.display = "";
+    editorVisible = true;
+  }
+
+  const btn = document.getElementById("editor-toggle-btn");
+  if (btn) btn.title = editorVisible ? "Hide Editor (⌘\\)" : "Show Editor (⌘\\)";
+}
+
 async function handleSearchResultClick(path: string, line: number) {
   if (buffers.has(path)) {
     switchToBuffer(path);
@@ -355,6 +381,9 @@ function setupKeyboardShortcuts() {
     } else if ((e.metaKey || e.ctrlKey) && e.key === "w") {
       e.preventDefault();
       if (activeBufferPath) closeBuffer(activeBufferPath);
+    } else if (mod && e.key === "\\") {
+      e.preventDefault();
+      toggleEditorPane();
     }
   });
 }
@@ -403,6 +432,13 @@ document.addEventListener("DOMContentLoaded", () => {
     (path) => switchToBuffer(path),
     (path) => closeBuffer(path)
   );
+
+  const editorToggleBtn = document.createElement("button");
+  editorToggleBtn.id = "editor-toggle-btn";
+  editorToggleBtn.title = "Hide Editor (⌘\\)";
+  editorToggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="1"/><line x1="7" y1="2" x2="7" y2="14"/></svg>`;
+  editorToggleBtn.addEventListener("click", toggleEditorPane);
+  tabBar.appendChild(editorToggleBtn);
 
   initBottomBar(bottomBar);
   initPreview(previewContent, resyncScroll);
