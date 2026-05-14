@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "MD Editor",
+  "productName": "Marrow",
   "version": "0.1.0",
   "identifier": "com.md-editor.app",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "MD Editor",
+        "title": "Marrow",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

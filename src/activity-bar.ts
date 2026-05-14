@@ -1,4 +1,4 @@
-type PanelName = 'explorer' | 'search' | 'settings';
+type PanelName = 'explorer' | 'search' | 'open-project' | 'settings';
 
 let activePanel: PanelName | null = 'explorer';
 let sidebarEl: HTMLElement | null = null;
@@ -11,7 +11,8 @@ export function setSettingsToggleCallback(callback: () => void): void {
 
 export function initActivityBar(
   activityBarEl: HTMLElement,
-  sidebar: HTMLElement
+  sidebar: HTMLElement,
+  onOpenProject?: () => void
 ): void {
   sidebarEl = sidebar;
 
@@ -20,6 +21,10 @@ export function initActivityBar(
       const panel = btn.getAttribute('data-panel') as PanelName;
       if (panel === 'settings') {
         if (settingsToggleCallback) settingsToggleCallback();
+        return;
+      }
+      if (panel === 'open-project') {
+        onOpenProject?.();
         return;
       }
       if (panel === activePanel) {

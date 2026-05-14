@@ -4,7 +4,7 @@ import { ask, save } from "@tauri-apps/plugin-dialog";
 import { EditorState } from "@codemirror/state";
 import { initEditor, setContent, getContent, onCursorChange, setFontSize, createEditorState, getEditorState, setEditorState, getScrollDOM, getEditorView } from "./editor";
 import { initPreview, updatePreview } from "./preview";
-import { initFileTree, openFileDialog, setActivePath } from "./file-tree";
+import { initFileTree, openFileDialog, setActivePath, openFolder, handleNewFile, handleNewFolder, refreshDirectory, getWorkspaceRoot } from "./file-tree";
 import { initScrollSync, resyncScroll, resetScrollSync } from "./scroll-sync";
 import { initBottomBar, updateCursorPosition, updateWordCount, updateFileType, clearBottomBar } from "./bottom-bar";
 import { initTabBar, addTab, removeTab, setActiveTab, setTabDirty, updateTabPath } from "./tab-bar";
@@ -68,7 +68,7 @@ function updateTitle() {
     }
   }
   const dirtyMark = dirty ? " *" : "";
-  document.title = `${fileName}${dirtyMark} - MD Editor`;
+  document.title = `${fileName}${dirtyMark} - Marrow`;
 }
 
 function countWords(text: string): number {
@@ -205,7 +205,7 @@ async function closeBuffer(path: string) {
       setActivePath("");
       updatePreview("");
       clearBottomBar();
-      document.title = "MD Editor";
+      document.title = "Marrow";
       showEmptyState();
     }
   }
@@ -324,6 +324,32 @@ function setupDivider() {
   });
 }
 
+let editorFlexRatio: number = 0.5;
+let editorVisible: boolean = true;
+
+function toggleEditorPane() {
+  const contentRow = document.getElementById("content-row");
+  if (!contentRow || contentRow.style.display === "none") return;
+
+  const editorPane = document.getElementById("editor-pane")!;
+  const divider = document.getElementById("divider")!;
+
+  if (editorVisible) {
+    editorFlexRatio = parseFloat(editorPane.style.flex) || 0.5;
+    editorPane.style.display = "none";
+    divider.style.display = "none";
+    editorVisible = false;
+  } else {
+    editorPane.style.display = "";
+    editorPane.style.flex = String(editorFlexRatio);
+    divider.style.display = "";
+    editorVisible = true;
+  }
+
+  const btn = document.getElementById("editor-toggle-btn");
+  if (btn) btn.title = editorVisible ? "Hide Editor (⌘\\)" : "Show Editor (⌘\\)";
+}
+
 async function handleSearchResultClick(path: string, line: number) {
   if (buffers.has(path)) {
     switchToBuffer(path);
@@ -355,11 +381,14 @@ function setupKeyboardShortcuts() {
     } else if ((e.metaKey || e.ctrlKey) && e.key === "w") {
       e.preventDefault();
       if (activeBufferPath) closeBuffer(activeBufferPath);
+    } else if (mod && e.key === "\\") {
+      e.preventDefault();
+      toggleEditorPane();
     }
   });
 }
 
-const WELCOME_TEXT = `# Welcome to MD Editor
+const WELCOME_TEXT = `# Welcome to Marrow
 
 Start typing your markdown here, and see the **live preview** on the right.
 
@@ -394,8 +423,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const editorPane = document.getElementById("editor-pane")!;
   const previewContent = document.getElementById("preview-content")!;
   const fileTree = document.getElementById("file-tree")!;
-  const openFolderBtn = document.getElementById("open-folder-btn")!;
-
   const previewPane = document.getElementById("preview-pane")!;
   const bottomBar = document.getElementById("bottom-bar")!;
 
@@ -406,6 +433,13 @@ document.addEventListener("DOMContentLoaded", () => {
     (path) => closeBuffer(path)
   );
 
+  const editorToggleBtn = document.createElement("button");
+  editorToggleBtn.id = "editor-toggle-btn";
+  editorToggleBtn.title = "Hide Editor (⌘\\)";
+  editorToggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="1"/><line x1="7" y1="2" x2="7" y2="14"/></svg>`;
+  editorToggleBtn.addEventListener("click", toggleEditorPane);
+  tabBar.appendChild(editorToggleBtn);
+
   initBottomBar(bottomBar);
   initPreview(previewContent, resyncScroll);
   onCursorChange((line, col) => updateCursorPosition(line, col));
@@ -414,7 +448,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollSync(previewPane);
   initFileTree(
     fileTree,
-    openFolderBtn,
     handleFileOpen,
     // On delete: close buffer if open
     (deletedPath: string) => {
@@ -434,7 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setActivePath("");
             updatePreview("");
             clearBottomBar();
-            document.title = "MD Editor";
+            document.title = "Marrow";
             showEmptyState();
           }
         }
@@ -459,7 +492,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const activityBar = document.getElementById('activity-bar')!;
   const sidebar = document.getElementById('sidebar')!;
-  initActivityBar(activityBar, sidebar);
+  initActivityBar(activityBar, sidebar, openFolder);
+
+  sidebar.querySelectorAll<HTMLButtonElement>('.sidebar-icon-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-action');
+      if (action === 'new-file') {
+        const root = getWorkspaceRoot();
+        handleNewFile(root ?? '', root !== null);
+      } else if (action === 'new-folder') {
+        const root = getWorkspaceRoot();
+        handleNewFolder(root ?? '', root !== null);
+      } else if (action === 'refresh') {
+        const root = getWorkspaceRoot();
+        if (root) refreshDirectory(root);
+      }
+    });
+  });
 
   const searchPanel = document.getElementById('search-panel')!;
   initSearchPanel(searchPanel, handleSearchResultClick);
